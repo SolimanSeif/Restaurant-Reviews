@@ -11,3 +11,4 @@ if ('serviceWorker' in navigator) {
 } else {
 	console.log('browser doesnt support service worker..');
 }
+//# sourceMappingURL=sw.js.map
