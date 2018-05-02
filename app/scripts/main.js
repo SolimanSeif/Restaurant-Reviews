@@ -9,23 +9,39 @@ var markers = []
  * Fetch neighborhoods and cuisines as soon as the page is loaded.
  */
 document.addEventListener('DOMContentLoaded', (event) => {
-  fetchNeighborhoods();
-  fetchCuisines();
+  // fetchNeighborhoods();
+  // fetchCuisines();
+
+  fillSearchingCriteria();
 });
 
-/**
- * Fetch all neighborhoods and set their HTML.
- */
-var fetchNeighborhoods = () => {
-  DBHelper.fetchNeighborhoods((error, neighborhoods) => {
+
+var fillSearchingCriteria = ()=>{
+  DBHelper.fetchSearchValues((error, neighborhoods, cuisines) => {
     if (error) { // Got an error
       console.error(error);
     } else {
       self.neighborhoods = neighborhoods;
+      self.cuisines = cuisines;
+      fillCuisinesHTML();
       fillNeighborhoodsHTML();
     }
   });
 }
+
+/**
+ * Fetch all neighborhoods and set their HTML.
+ */
+// var fetchNeighborhoods = () => {
+//   DBHelper.fetchNeighborhoods((error, neighborhoods) => {
+//     if (error) { // Got an error
+//       console.error(error);
+//     } else {
+//       self.neighborhoods = neighborhoods;
+//       fillNeighborhoodsHTML();
+//     }
+//   });
+// }
 
 /**
  * Set neighborhoods HTML.
@@ -43,16 +59,16 @@ var fillNeighborhoodsHTML = (neighborhoods = self.neighborhoods) => {
 /**
  * Fetch all cuisines and set their HTML.
  */
-var fetchCuisines = () => {
-  DBHelper.fetchCuisines((error, cuisines) => {
-    if (error) { // Got an error!
-      console.error(error);
-    } else {
-      self.cuisines = cuisines;
-      fillCuisinesHTML();
-    }
-  });
-}
+// var fetchCuisines = () => {
+//   DBHelper.fetchCuisines((error, cuisines) => {
+//     if (error) { // Got an error!
+//       console.error(error);
+//     } else {
+//       self.cuisines = cuisines;
+//       fillCuisinesHTML();
+//     }
+//   });
+// }
 
 /**
  * Set cuisines HTML.
@@ -131,6 +147,7 @@ var fillRestaurantsHTML = (restaurants = self.restaurants) => {
     ul.append(createRestaurantHTML(restaurant));
   });
   addMarkersToMap();
+  configureIntersectionObserver();
 }
 
 /**
@@ -147,11 +164,13 @@ var createRestaurantHTML = (restaurant) => {
 	
 	let imgsList = DBHelper.imagesUrlForRestaurant(restaurant);
 	const picture = document.createElement('picture');
-	//picture.className = 'restaurant-img';
+	picture.className = 'js-lazy-image';
+  picture.display = 'none';
 	const img1 = document.createElement('source');
 	img1.media = '(min-width: 1500px)';
 	img1.className = 'restaurant-img';
 	img1.srcset = imgsList[1];
+
 	picture.append(img1);
 	const img2 = document.createElement('source');
 	img2.media = '(min-width: 800px)';
@@ -160,7 +179,8 @@ var createRestaurantHTML = (restaurant) => {
 	picture.append(img2);
 	const img = document.createElement('img');
 	img.alt = restaurant.name + ' restaurant , provide ' + restaurant.cuisine_type + ', Located in ' + restaurant.address;
-	img.src = imgsList[3];
+	// img.src = imgsList[3];
+  img.setAttribute('data-src', imgsList[3]);
 	img.className = 'restaurant-img';
 	picture.append(img);
 	li.append(picture);
@@ -199,4 +219,128 @@ var addMarkersToMap = (restaurants = self.restaurants) => {
     self.markers.push(marker);
   });
 }
+
+
+
+/* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ 
+  * intersection observer section 
+*/
+
+let images, imageCount, observer;
+var configureIntersectionObserver = ()=>{
+  // Get all of the images that are marked up to lazy load
+  images = document.querySelectorAll('.js-lazy-image');
+  const config = {
+    // If the image gets within 50px in the Y axis, start the download.
+    rootMargin: '50px 0px',
+    threshold: 0.01
+  };
+  imageCount = images.length;
+  // If we don't have support for intersection observer, loads the images immediately
+  if (!('IntersectionObserver' in window)) {
+    loadImagesImmediately(images);
+  } else {
+    // It is supported, load the images
+    observer = new IntersectionObserver(onIntersection, config);
+
+    // foreach() is not supported in IE
+    for (let i = 0; i < images.length; i++) { 
+      let image = images[i];
+      if (image.classList.contains('js-lazy-image--handled')) {
+        continue;
+      }
+
+      observer.observe(image);
+    }
+  }
+}
+
+
+/**
+ * Fetchs the image for the given URL
+ * @param {string} url 
+ */
+function fetchImage(url) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.src = url;
+    image.onload = resolve;
+    image.onerror = reject;
+  });
+}
+
+/**
+ * Preloads the image
+ * @param {object} image 
+ */
+function preloadImage(image) {
+  const src = image.dataset.src;
+  if (!src) {
+    return;
+  }
+
+  return fetchImage(src).then(() => { applyImage(image, src); });
+}
+
+/**
+ * Load all of the images immediately
+ * @param {NodeListOf<Element>} images 
+ */
+function loadImagesImmediately(images) {
+  // foreach() is not supported in IE
+  for (let i = 0; i < images.length; i++) { 
+    let image = images[i];
+    preloadImage(image.children[2]);
+  }
+}
+
+/**
+ * Disconnect the observer
+ */
+function disconnect() {
+  if (!observer) {
+    return;
+  }
+
+  observer.disconnect();
+}
+
+/**
+ * On intersection
+ * @param {array} entries 
+ */
+function onIntersection(entries) {
+  // Disconnect if we've already loaded all of the images
+  if (imageCount === 0) {
+    observer.disconnect();
+  }
+
+  // Loop through the entries
+  for (let i = 0; i < entries.length; i++) { 
+    let entry = entries[i];
+    // Are we in viewport?
+    if (entry.intersectionRatio > 0) {
+      imageCount--;
+
+      // Stop watching and load the image
+      observer.unobserve(entry.target);
+      preloadImage(entry.target.children[2]);
+    }
+  }
+}
+
+/**
+ * Apply the image
+ * @param {object} img 
+ * @param {string} src 
+ */
+function applyImage(img, src) {
+  // Prevent this from being lazy loaded a second time.
+  img.classList.add('js-lazy-image--handled');
+  img.src = src;
+  // img.classList.add('fade-in');
+}
+
+
+
 

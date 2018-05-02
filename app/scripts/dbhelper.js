@@ -144,11 +144,8 @@ class DBHelper {
     });
   }
 
-  /**
-   * Fetch all neighborhoods with proper error handling.
-   */
-  static fetchNeighborhoods(callback) {
-    // Fetch all restaurants
+
+  static fetchSearchValues(callback){
     DBHelper.fetchRestaurants((error, restaurants) => {
       if (error) {
         callback(error, null);
@@ -157,28 +154,52 @@ class DBHelper {
         const neighborhoods = restaurants.map((v, i) => restaurants[i].neighborhood)
         // Remove duplicates from neighborhoods
         const uniqueNeighborhoods = neighborhoods.filter((v, i) => neighborhoods.indexOf(v) == i)
-        callback(null, uniqueNeighborhoods);
+        
+        const cuisines = restaurants.map((v, i) => restaurants[i].cuisine_type);
+        // Remove duplicates from cuisines
+        const uniqueCuisines = cuisines.filter((v, i) => cuisines.indexOf(v) == i);
+
+        callback(null, uniqueNeighborhoods, uniqueCuisines);
       }
     });
   }
 
+
+  /**
+   * Fetch all neighborhoods with proper error handling.
+   */
+  // static fetchNeighborhoods(callback) {
+  //   // Fetch all restaurants
+  //   DBHelper.fetchRestaurants((error, restaurants) => {
+  //     if (error) {
+  //       callback(error, null);
+  //     } else {
+  //       // Get all neighborhoods from all restaurants
+  //       const neighborhoods = restaurants.map((v, i) => restaurants[i].neighborhood)
+  //       // Remove duplicates from neighborhoods
+  //       const uniqueNeighborhoods = neighborhoods.filter((v, i) => neighborhoods.indexOf(v) == i)
+  //       callback(null, uniqueNeighborhoods);
+  //     }
+  //   });
+  // }
+
   /**
    * Fetch all cuisines with proper error handling.
    */
-  static fetchCuisines(callback) {
-    // Fetch all restaurants
-    DBHelper.fetchRestaurants((error, restaurants) => {
-      if (error) {
-        callback(error, null);
-      } else {
-        // Get all cuisines from all restaurants
-        const cuisines = restaurants.map((v, i) => restaurants[i].cuisine_type)
-        // Remove duplicates from cuisines
-        const uniqueCuisines = cuisines.filter((v, i) => cuisines.indexOf(v) == i)
-        callback(null, uniqueCuisines);
-      }
-    });
-  }
+  // static fetchCuisines(callback) {
+  //   // Fetch all restaurants
+  //   DBHelper.fetchRestaurants((error, restaurants) => {
+  //     if (error) {
+  //       callback(error, null);
+  //     } else {
+  //       // Get all cuisines from all restaurants
+  //       const cuisines = restaurants.map((v, i) => restaurants[i].cuisine_type)
+  //       // Remove duplicates from cuisines
+  //       const uniqueCuisines = cuisines.filter((v, i) => cuisines.indexOf(v) == i)
+  //       callback(null, uniqueCuisines);
+  //     }
+  //   });
+  // }
 
   /**
    * Restaurant page URL.
@@ -207,10 +228,18 @@ class DBHelper {
 	static imagesUrlForRestaurant(restaurant) {
     let name = DBHelper.getImageName(restaurant);
 		var imgsList = [];
-		imgsList.push(`/images/1600/${name}`);
-		imgsList.push(`/images/800x600/${name}`);
-		imgsList.push(`/images/${name}`);
-    imgsList.push(`/images/270x203/${name}`);
+    if(name){
+      imgsList.push(`/images/1600/${name}`);
+      imgsList.push(`/images/800x600/${name}`);
+      imgsList.push(`/images/${name}`);
+      imgsList.push(`/images/270x203/${name}`);  
+    }else{
+      imgsList.push('/images/SplashScreen/splashScreen-256x256.png');
+      imgsList.push('/images/SplashScreen/splashScreen-256x256.png');
+      imgsList.push('/images/SplashScreen/splashScreen-256x256.png');
+      imgsList.push('/images/SplashScreen/splashScreen-256x256.png');
+    }
+		
 		return imgsList;
 	}
   /**
